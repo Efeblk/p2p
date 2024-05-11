@@ -99,18 +99,21 @@ def handle_client_connection(client_socket):
                 send_public_key(rcv_username, public_key, True) #send my public key to the other user
 
                 found = False
-                with open('key_cache.json', 'r') as file:
-                    data = json.load(file)
-                    print(data)
-                    for key in data:
-                        if key["username"] == rcv_username:
-                            found = True
-                            key["private_key"] = private_key
-                            key["public_key"] = public_key
-                            key["shared_key"] = shared_key
-                            break
-                with open('key_cache.json', 'w') as file:
-                    json.dump(data, file)
+                try:
+                    with open('key_cache.json', 'r') as file:
+                        data = json.load(file)
+                        print(data)
+                        for key in data:
+                            if key["username"] == rcv_username:
+                                found = True
+                                key["private_key"] = private_key
+                                key["public_key"] = public_key
+                                key["shared_key"] = shared_key
+                                break
+                    with open('key_cache.json', 'w') as file:
+                        json.dump(data, file)
+                except:
+                    print("NO DATA FOUND")
                 if found == False:
                     add_key(rcv_username, private_key, public_key, shared_key)
             elif is_response == True:
