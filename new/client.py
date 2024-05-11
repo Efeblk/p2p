@@ -22,6 +22,15 @@ def generate_public_key(private_key):
 
     return public_key
 
+def generate_shared_key(public_key):
+    with open("key_cache.json", "r") as json_file:
+        data = json.load(json_file)
+    private_key = data["private_key"]
+    with open("p_and_g.json", "r") as json_file:
+        data = json.load(json_file)
+    p = data["p"]
+    shared_key = pow(public_key, private_key, p)
+    return shared_key
 
 def display_online_users(users):
     current_time = time.time()
@@ -52,7 +61,7 @@ def log_message(timestamp, sender, message, direction):
     with open('chat_log.txt', 'a') as log_file:
         log_file.write(log_entry + '\n')
 
-def listen_messages():
+def listen_connection():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     ip_address = ip_address_self
     server_socket.bind((ip_address, 6001))
@@ -81,10 +90,17 @@ def handle_client_connection(client_socket):
                 break
             
             payload = json.loads(message.decode())
-            username = payload.get('username')
-            shared_key = payload.get('public_key')  # Extract the shared key from the payload
-            print(f"Received public key from {username}: {shared_key}")
-
+            rcv_username = payload.get('username')
+            rcv_public_key = payload.get('public_key')
+            with open('key_cache', 'r') and open('key_cache', 'w') as file:
+                data = json.load(file)
+                cache_username = data['username']
+                shared_key = generate_shared_key(rcv_public_key)
+                if rcv_username not in cache_username: #this means im NOT the one who initiated the chat
+                    private_key = genarate_private_key()
+                    public_key = generate_public_key(private_key)
+                    send_public_key(rcv_username, public_key) #send my public key to the other user
+                json.dump({"username": rcv_username, "private_key": private_key, "public_key": public_key, "shared_key": shared_key}, file)
     except Exception as e:
         print(f"Error handling client connection: {e}")
     finally:
@@ -103,7 +119,7 @@ def send_public_key(username, public_key):
 def initiate_secure_chat(username):
     private_key = genarate_private_key()
     public_key = generate_public_key(private_key)
-
+   
     send_public_key(username, public_key)
 
 def initiate_chat():
@@ -224,7 +240,7 @@ def main():
 
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
-    message_listener_thread = threading.Thread(target=listen_messages)
+    message_listener_thread = threading.Thread(target=listen_connection)
     listen_thread.start()
     announce_thread.start()
     message_listener_thread.start()
