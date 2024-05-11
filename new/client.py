@@ -319,7 +319,7 @@ def main():
     announce_thread_stop = True
     announce_thread.join() # Wait for the thread to finish
     message_thread_stop = True
-    message_listener_thread.join() # Wait for the thread to finish
+    message_listener_thread.join() # Wait for the thread to finis
     
     
 if __name__ == '__main__':
