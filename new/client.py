@@ -234,7 +234,7 @@ def main():
     self_username = ask_for_username()
 
     with open("key_cache.json", "w") as json_file:
-        json.dump({"username": self_username, "private_key": -1, "public_key": -1, "shared_key": -1}, json_file)
+        json.dump({"username": self_username, "private_key": "-1", "public_key": "-1", "shared_key": "-1"}, json_file)
 
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
