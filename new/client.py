@@ -94,10 +94,11 @@ def handle_client_connection(client_socket):
                 cache_username = data['username']  
                 shared_key = generate_shared_key(rcv_public_key)
                 if rcv_username not in cache_username: #this means im NOT the one who initiated the chat
+                    print("IM NOT THE SENDER")
                     private_key = genarate_private_key()
                     public_key = generate_public_key(private_key)
                     send_public_key(rcv_username, public_key) #send my public key to the other user
-                json.dump({"username": rcv_username, "private_key": private_key, "public_key": public_key, "shared_key": shared_key}, file)
+                add_key(rcv_username, private_key, public_key, shared_key)
     except Exception as e:
         print(f"Error handling client connection: {e}")
     finally:
@@ -215,6 +216,19 @@ def listen_for_broadcasts():
         except json.JSONDecodeError:
             pass
 
+def add_key(username, private_key, public_key, shared_key):
+    # Load the existing keys
+    keys = []
+    try:
+        with open("key_cache.json", 'r') as json_file:
+            keys = json.load(json_file)
+    except:
+        print("no data")
+    keys.append({"username": username, "private_key": private_key, "public_key": public_key, "shared_key": shared_key})
+    # Write the updated keys back to the file
+    with open("key_cache.json", "w") as json_file:
+        json.dump(keys, json_file)
+
 def main():
     global announce_thread_stop
     global listen_thread_stop
@@ -233,8 +247,7 @@ def main():
     ip_address_self = get_ip_address()
     self_username = ask_for_username()
 
-    with open("key_cache.json", "w") as json_file:
-        json.dump({"username": self_username, "private_key": -1, "public_key": -1, "shared_key": -1}, json_file)
+    add_key(self_username, 0, 0, 0)
 
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
