@@ -97,17 +97,35 @@ def handle_client_connection(client_socket):
                 public_key = generate_public_key(private_key) #this is for server
                 shared_key = generate_shared_key(rcv_public_key, private_key)
                 send_public_key(rcv_username, public_key, True) #send my public key to the other user
-                add_key(rcv_username, private_key, public_key, shared_key)
+
+                found = False
+                with open('key_cache.json', 'r') as file:
+                    data = json.load(file)
+                    print(data)
+                    for key in data:
+                        if key["username"] == rcv_username:
+                            found = True
+                            key["private_key"] = private_key
+                            key["public_key"] = public_key
+                            key["shared_key"] = shared_key
+                            break
+                with open('key_cache.json', 'w') as file:
+                    json.dump(data, file)
+                if found == False:
+                    add_key(rcv_username, private_key, public_key, shared_key)
             elif is_response == True:
                 #im the one who initiated the chat
                 print(f"IM THE SENDER")
                 with open('key_cache.json', 'r') as file:
                     data = json.load(file)
+                    print(data)
                     for key in data:
                         if key["username"] == rcv_username:
                             shared_key = generate_shared_key(rcv_public_key, key["private_key"])
                             key["shared_key"] = shared_key
                             break
+                with open('key_cache.json', 'w') as file:
+                    json.dump(data, file)
     except Exception as e:
         print(f"Error handling client connection: {e}")
     finally:
