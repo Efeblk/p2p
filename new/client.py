@@ -9,8 +9,6 @@ import datetime
 def genarate_private_key(): 
     # Always generate a new private key
     private_key = random.randint(1, 23)
-    with open("private_key.json", "w") as json_file:
-        json.dump({"private_key": private_key, "public_key": -1}, json_file)
     return private_key
 
 def generate_public_key(private_key):
@@ -91,7 +89,7 @@ def handle_client_connection(client_socket):
             payload = json.loads(message.decode())
             rcv_username = payload.get('username')
             rcv_public_key = payload.get('public_key')
-            with open('key_cache.json', 'r') and open('key_cache.json', 'w') as file:
+            with open('key_cache.json', 'w+') as file:
                 data = json.load(file)
                 cache_username = data['username']  
                 shared_key = generate_shared_key(rcv_public_key)
@@ -110,9 +108,7 @@ def send_public_key(username, public_key):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     user_ip_address = users[username]['ip_address']
     sock.connect((user_ip_address, 6001))
-    private_key = genarate_private_key()
-    public_key_data = generate_public_key(private_key)
-    payload = json.dumps({"username": self_username, "public_key": public_key_data, "ip_address": ip_address_self})
+    payload = json.dumps({"username": self_username, "public_key": public_key, "ip_address": ip_address_self})
     sock.sendall(payload.encode())
 
 def initiate_secure_chat(username):
@@ -239,7 +235,7 @@ def main():
 
     with open("key_cache.json", "w") as json_file:
         json.dump({"username": self_username, "private_key": -1, "public_key": -1, "shared_key": -1}, json_file)
-        
+
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
     message_listener_thread = threading.Thread(target=listen_connection)
