@@ -86,15 +86,11 @@ def handle_client_connection(client_socket):
             payload = json.loads(message.decode())
             rcv_username = payload.get('username')
             rcv_public_key = payload.get('public_key')
-            print("here")
-            print(type(rcv_public_key))
-            print(rcv_public_key)
-            print("here")
+
             private_key = genarate_private_key() #this is for server
-            print("here")
             public_key = generate_public_key(private_key) #this is for server
             shared_key = generate_shared_key(rcv_public_key, private_key) #this is for both
-            print("here")
+
             with open('key_cache.json', 'r') as file:
                 data = json.load(file)
                 cache_username = data[-1]['username']  
@@ -123,7 +119,7 @@ def send_public_key(username, public_key):
 def initiate_secure_chat(username):
     private_key = genarate_private_key()
     public_key = generate_public_key(private_key)
-   
+    add_key(username, private_key, public_key, -1)
     send_public_key(username, public_key)
 
 def initiate_chat():
