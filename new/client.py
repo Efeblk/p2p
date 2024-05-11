@@ -20,10 +20,7 @@ def generate_public_key(private_key):
 
     return public_key
 
-def generate_shared_key(public_key):
-    with open("key_cache.json", "r") as json_file:
-        data = json.load(json_file)
-    private_key = data["private_key"]
+def generate_shared_key(public_key, private_key):
     with open("p_and_g.json", "r") as json_file:
         data = json.load(json_file)
     p = data["p"]
@@ -89,16 +86,27 @@ def handle_client_connection(client_socket):
             payload = json.loads(message.decode())
             rcv_username = payload.get('username')
             rcv_public_key = payload.get('public_key')
-            with open('key_cache.json', 'r+') as file:
+            print("here")
+            print(type(rcv_public_key))
+            print(rcv_public_key)
+            print("here")
+            private_key = genarate_private_key() #this is for server
+            print("here")
+            public_key = generate_public_key(private_key) #this is for server
+            shared_key = generate_shared_key(rcv_public_key, private_key) #this is for both
+            print("here")
+            with open('key_cache.json', 'r') as file:
                 data = json.load(file)
-                cache_username = data['username']  
-                shared_key = generate_shared_key(rcv_public_key)
-                if rcv_username not in cache_username: #this means im NOT the one who initiated the chat
+                cache_username = data[-1]['username']  
+                print(cache_username)
+                print(rcv_username)         
+                if rcv_username == cache_username: #this means im NOT the one who initiated the chat
                     print("IM NOT THE SENDER")
-                    private_key = genarate_private_key()
-                    public_key = generate_public_key(private_key)
                     send_public_key(rcv_username, public_key) #send my public key to the other user
-                add_key(rcv_username, private_key, public_key, shared_key)
+                    add_key(rcv_username, private_key, public_key, shared_key)
+                else:
+                    print("IM THE SENDER")
+                    add_key(rcv_username, "", "", shared_key)
     except Exception as e:
         print(f"Error handling client connection: {e}")
     finally:
@@ -224,7 +232,15 @@ def add_key(username, private_key, public_key, shared_key):
             keys = json.load(json_file)
     except:
         print("no data")
-    keys.append({"username": username, "private_key": private_key, "public_key": public_key, "shared_key": shared_key})
+
+    if username in [key["username"] for key in keys]:
+        # Update the existing key
+        for key in keys:
+            if key["username"] == username:
+                key["shared_key"] = shared_key
+    else:
+        # Add a new key
+        keys.append({"username": username, "private_key": private_key, "public_key": public_key, "shared_key": shared_key})
     # Write the updated keys back to the file
     with open("key_cache.json", "w") as json_file:
         json.dump(keys, json_file)
@@ -277,6 +293,7 @@ def main():
     announce_thread.join() # Wait for the thread to finish
     message_thread_stop = True
     message_listener_thread.join() # Wait for the thread to finish
+    
     
 if __name__ == '__main__':
     main()
