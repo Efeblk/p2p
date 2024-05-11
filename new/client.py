@@ -89,7 +89,7 @@ def handle_client_connection(client_socket):
             payload = json.loads(message.decode())
             rcv_username = payload.get('username')
             rcv_public_key = payload.get('public_key')
-            with open('key_cache.json', 'w+') as file:
+            with open('key_cache.json', 'r+') as file:
                 data = json.load(file)
                 cache_username = data['username']  
                 shared_key = generate_shared_key(rcv_public_key)
@@ -234,7 +234,7 @@ def main():
     self_username = ask_for_username()
 
     with open("key_cache.json", "w") as json_file:
-        json.dump({"username": self_username, "private_key": "-1", "public_key": "-1", "shared_key": "-1"}, json_file)
+        json.dump({"username": self_username, "private_key": -1, "public_key": -1, "shared_key": -1}, json_file)
 
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
