@@ -88,13 +88,12 @@ def handle_client_connection(client_socket):
             message = client_socket.recv(1024)
             if not message:
                 break
-            
             payload = json.loads(message.decode())
             rcv_username = payload.get('username')
             rcv_public_key = payload.get('public_key')
-            with open('key_cache', 'r') and open('key_cache', 'w') as file:
+            with open('key_cache.json', 'r') and open('key_cache.json', 'w') as file:
                 data = json.load(file)
-                cache_username = data['username']
+                cache_username = data['username']  
                 shared_key = generate_shared_key(rcv_public_key)
                 if rcv_username not in cache_username: #this means im NOT the one who initiated the chat
                     private_key = genarate_private_key()
@@ -173,7 +172,8 @@ def send_broadcast(username, ip_address, interval=8):
 def get_ip_address():
     # Create a socket
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
+    with open("key_cache.json", "w") as json_file:
+        json.dump({"username": self_username, "private_key": -1, "public_key": -1, "shared_key": -1}, json_file)
     try:
         # This doesn't actually connect, but it does cause the system to
         # select an interface that would be used for a real connection
