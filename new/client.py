@@ -39,24 +39,55 @@ def list_users():
     print(users)
     display_online_users(users)
 
+def send_public_key(username, public_key):
+    # Create a TCP socket
+    global sock
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    user_ip_address = users[username]['ip_address']
+    sock.connect((user_ip_address, 6001))
+    private_key = genarate_private_key()
+    public_key_data = generate_public_key(private_key)
+    payload = json.dumps({"username": self_username, "public_key": public_key_data, "ip_address": ip_address_self})
+    sock.sendall(payload.encode())
+
+def initiate_secure_chat(username):
+    private_key = genarate_private_key()
+    public_key = generate_public_key(private_key)
+
+    send_public_key(username, public_key)
+
+
+
+
+
+
+    with open("private_key.json", "w") as json_file:
+        json.dump({"username": username, "private_key": private_key, "public_key": public_key}, json_file)
+
+    with open("sent_public_key.json", "w") as json_file:
+        json.dump(shared_key_data, json_file)
+
+    message = input("Enter your secure message: ")
+    send_message(username, message, shared_key, final_key=None)
+
+
 def initiate_chat():
-     # Prompt the user for the username to chat with
-            users = read_user_data('users.txt')
-            while True:
-                username = input("Enter the username to chat with (or 'back' to go back): ")
-                username = username.lower()
-                if username == 'back':
-                    break
-                if username in users:
-                    # Prompt the user for secure or unsecure chat
-                    secure_chat = input("Do you want to chat securely? (yes/no): ")
-                    secure_chat = secure_chat.lower()
-                    if secure_chat == 'yes':
-                        initiate_secure_chat(username)
-                    else:
-                        initiate_unsecure_chat(username)
-                    break
-                print("Invalid username. Please try again.")
+    # Prompt the user for the username to chat with
+    while True:
+        username = input("Enter the username to chat with (or 'back' to go back): ")
+        username = username.lower()
+        if username == 'back':
+            break
+        if username in users:
+            # Prompt the user for secure or unsecure chat
+            secure_chat = input("Do you want to chat securely? (yes/no): ")
+            secure_chat = secure_chat.lower()
+            if secure_chat == 'yes':
+                initiate_secure_chat(username)
+            else:
+                initiate_unsecure_chat(username)
+            break
+        print("Invalid username. Please try again.")
 
 def print_history():
     # Display the chat history
@@ -135,8 +166,6 @@ def listen_for_broadcasts():
                 continue
             # Update the last seen time and IP address for the user
             users[username] = {'last_seen': time.time(), 'ip_address': ip_address}
-            # Print the received message to the terminal
-            print(f"Received broadcast from {username} at {ip_address}")
             # Write the user data to a file
             with open('users.txt', 'w') as f:
                 json.dump(users, f)
@@ -154,9 +183,10 @@ def main():
     listen_thread_stop = False
     announce_thread_stop = False
     
-    username = ask_for_username()
+    global self_username
+    self_username = ask_for_username()
 
-    announce_thread = threading.Thread(target=live_self_announce, args=(username,))
+    announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
     listen_thread.start()
     announce_thread.start()
@@ -181,9 +211,9 @@ def main():
             print("Invalid option. Please try again.")
     print("Exiting...")
     listen_thread_stop = True
-    listen_thread.join()
+    listen_thread.join() # Wait for the thread to finish
     announce_thread_stop = True
-    announce_thread.join()
+    announce_thread.join() # Wait for the thread to finish
     
 if __name__ == '__main__':
     main()
