@@ -35,8 +35,8 @@ def display_online_users(users):
         print(f"{username} ({status})")
 
 def list_users():
-    print(users)
     display_online_users(users)
+    print(users)
 
 def decrypt_message(encrypted_message_base64, shared_key):
     shared_key = shared_key.to_bytes(8, 'big')
@@ -57,12 +57,16 @@ def listen_messages():
     ip_address = ip_address_self
     server_socket.bind((ip_address, 6001))
     server_socket.listen(1)
+    server_socket.settimeout(1)  # Set a timeout of 1 second
 
     try:
         while True:
             if message_thread_stop:
                 return
-            client_socket, address = server_socket.accept()
+            try:
+                client_socket, address = server_socket.accept()
+            except socket.timeout:
+                continue  # If accept() times out, skip to the next iteration of the loop
             handle_client_connection(client_socket)
     finally:
         server_socket.close()
@@ -88,7 +92,6 @@ def handle_client_connection(client_socket):
 
 def send_public_key(username, public_key):
     # Create a TCP socket
-    global sock
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     user_ip_address = users[username]['ip_address']
     sock.connect((user_ip_address, 6001))
@@ -167,9 +170,6 @@ def get_ip_address():
     return IP
 
 def live_self_announce(username):
-    # Get the IP address
-    global ip_address_self
-    ip_address_self = get_ip_address()
 
     # Start sending broadcast messages
     send_broadcast(username, ip_address_self)
@@ -217,6 +217,9 @@ def main():
     announce_thread_stop = False
     
     global self_username
+    global ip_address_self
+
+    ip_address_self = get_ip_address()
     self_username = ask_for_username()
 
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
@@ -245,6 +248,8 @@ def main():
     listen_thread.join() # Wait for the thread to finish
     announce_thread_stop = True
     announce_thread.join() # Wait for the thread to finish
+    message_thread_stop = True
+    message_listener_thread.join() # Wait for the thread to finish
     
 if __name__ == '__main__':
     main()
