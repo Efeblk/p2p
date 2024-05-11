@@ -172,8 +172,7 @@ def send_broadcast(username, ip_address, interval=8):
 def get_ip_address():
     # Create a socket
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    with open("key_cache.json", "w") as json_file:
-        json.dump({"username": self_username, "private_key": -1, "public_key": -1, "shared_key": -1}, json_file)
+   
     try:
         # This doesn't actually connect, but it does cause the system to
         # select an interface that would be used for a real connection
@@ -238,6 +237,9 @@ def main():
     ip_address_self = get_ip_address()
     self_username = ask_for_username()
 
+    with open("key_cache.json", "w") as json_file:
+        json.dump({"username": self_username, "private_key": -1, "public_key": -1, "shared_key": -1}, json_file)
+        
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
     message_listener_thread = threading.Thread(target=listen_connection)
