@@ -3,7 +3,8 @@ import json
 import threading
 import time
 import socket
-
+import base64
+import datetime
 
 def genarate_private_key(): 
     # Always generate a new private key
@@ -18,8 +19,6 @@ def generate_public_key(private_key):
     p = data["p"]
     g = data["g"]
     public_key = pow(g, private_key, p)
-    with open("public_key.json", "w") and open("public_key.json", "r") as json_file:
-        data = json.load(json_file)
 
     return public_key
 
@@ -39,6 +38,54 @@ def list_users():
     print(users)
     display_online_users(users)
 
+def decrypt_message(encrypted_message_base64, shared_key):
+    shared_key = shared_key.to_bytes(8, 'big')
+    cipher = des(shared_key, padmode=PAD_PKCS5)
+
+    encrypted_message = base64.b64decode(encrypted_message_base64)
+    decrypted_message = cipher.decrypt(encrypted_message)
+
+    return decrypted_message
+
+def log_message(timestamp, sender, message, direction):
+    log_entry = f"{timestamp} - {sender} ({direction}): {message}"
+    with open('chat_log.txt', 'a') as log_file:
+        log_file.write(log_entry + '\n')
+
+def listen_messages():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ip_address = ip_address_self
+    server_socket.bind((ip_address, 6001))
+    server_socket.listen(1)
+
+    try:
+        while True:
+            if message_thread_stop:
+                return
+            client_socket, address = server_socket.accept()
+            handle_client_connection(client_socket)
+    finally:
+        server_socket.close()
+
+def handle_client_connection(client_socket):
+    try:
+        while True:
+            if message_thread_stop:
+                return
+            message = client_socket.recv(1024)
+            if not message:
+                break
+            
+            payload = json.loads(message.decode())
+            username = payload.get('username')
+            shared_key = payload.get('public_key')  # Extract the shared key from the payload
+            print(f"Received public key from {username}: {shared_key}")
+
+    except Exception as e:
+        print(f"Error handling client connection: {e}")
+    finally:
+        client_socket.close()
+
 def send_public_key(username, public_key):
     # Create a TCP socket
     global sock
@@ -55,21 +102,6 @@ def initiate_secure_chat(username):
     public_key = generate_public_key(private_key)
 
     send_public_key(username, public_key)
-
-
-
-
-
-
-    with open("private_key.json", "w") as json_file:
-        json.dump({"username": username, "private_key": private_key, "public_key": public_key}, json_file)
-
-    with open("sent_public_key.json", "w") as json_file:
-        json.dump(shared_key_data, json_file)
-
-    message = input("Enter your secure message: ")
-    send_message(username, message, shared_key, final_key=None)
-
 
 def initiate_chat():
     # Prompt the user for the username to chat with
@@ -172,14 +204,15 @@ def listen_for_broadcasts():
         except json.JSONDecodeError:
             pass
 
-
 def main():
     global announce_thread_stop
     global listen_thread_stop
+    global message_thread_stop
     global users
 
     users = {}
 
+    message_thread_stop = False
     listen_thread_stop = False
     announce_thread_stop = False
     
@@ -188,13 +221,11 @@ def main():
 
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
+    message_listener_thread = threading.Thread(target=listen_messages)
     listen_thread.start()
     announce_thread.start()
+    message_listener_thread.start()
 
-    #private_key = genarate_private_key()
-    #print(private_key)
-    #public_key = generate_public_key(private_key)
-    #print(public_key)
     while True:
         option = input("Specify 'Users', 'Chat', 'History' or 'Exit': ")
         option = option.lower()

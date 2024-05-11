@@ -7,16 +7,7 @@ import datetime
 import base64
 
 # Function to display the list of online users
-def display_online_users(users):
-    current_time = time.time()
-    for username, user_info in users.items():
-        last_seen = user_info['last_seen']
-        time_difference = current_time - last_seen
-        if time_difference <= 10:
-            status = 'Online'
-        else:
-            status = 'Away'
-        print(f"{username} ({status})")
+
 
 def generate_key(p, g):
     private_key = random.randint(1, p - 1)  # Ensure private_key is within [1, p-1]
