@@ -145,7 +145,25 @@ def send_public_key(username, public_key, is_response):
 def initiate_secure_chat(username):
     private_key = genarate_private_key()
     public_key = generate_public_key(private_key)
-    add_key(username, private_key, public_key, -1)
+
+    found = False
+    try:
+        with open('key_cache.json', 'r') as file:
+            data = json.load(file)
+            print(data)
+            for key in data:
+                if key["username"] == username:
+                    found = True
+                    key["private_key"] = private_key
+                    key["public_key"] = public_key
+                    key["shared_key"] = -1
+                    break
+        with open('key_cache.json', 'w') as file:
+            json.dump(data, file)
+    except:
+        print("NO DATA FOUND")
+    if found == False:
+        add_key(username, private_key, public_key, -1)
     send_public_key(username, public_key, False)
 
 def initiate_chat():
