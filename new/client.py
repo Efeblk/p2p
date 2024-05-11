@@ -87,12 +87,8 @@ def handle_client_connection(client_socket):
             rcv_username = payload.get('username')
             rcv_public_key = payload.get('public_key')
             is_response = payload.get('is_response')
-            print("is response")
-            print(is_response)
-            print(type(is_response))
             if is_response == False:
                 #im not the one who initiated the chat
-                print(f"IM NOT THE SENDER")
                 private_key = genarate_private_key() #this is for server
                 public_key = generate_public_key(private_key) #this is for server
                 shared_key = generate_shared_key(rcv_public_key, private_key)
@@ -102,7 +98,6 @@ def handle_client_connection(client_socket):
                 try:
                     with open('key_cache.json', 'r') as file:
                         data = json.load(file)
-                        print(data)
                         for key in data:
                             if key["username"] == rcv_username:
                                 found = True
@@ -118,10 +113,8 @@ def handle_client_connection(client_socket):
                     add_key(rcv_username, private_key, public_key, shared_key)
             elif is_response == True:
                 #im the one who initiated the chat
-                print(f"IM THE SENDER")
                 with open('key_cache.json', 'r') as file:
                     data = json.load(file)
-                    print(data)
                     for key in data:
                         if key["username"] == rcv_username:
                             shared_key = generate_shared_key(rcv_public_key, key["private_key"])
