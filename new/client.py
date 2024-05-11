@@ -87,22 +87,28 @@ def handle_client_connection(client_socket):
             rcv_username = payload.get('username')
             rcv_public_key = payload.get('public_key')
 
-            private_key = genarate_private_key() #this is for server
-            public_key = generate_public_key(private_key) #this is for server
-            shared_key = generate_shared_key(rcv_public_key, private_key) #this is for both
+           
 
             with open('key_cache.json', 'r') as file:
                 data = json.load(file)
                 cache_username = data[-1]['username']  
                 print(cache_username)
                 print(rcv_username)         
-                if rcv_username == cache_username: #this means im NOT the one who initiated the chat
+                if rcv_username != cache_username: #this means im NOT the one who initiated the chat
                     print("IM NOT THE SENDER")
+                    private_key = genarate_private_key() #this is for server
+                    public_key = generate_public_key(private_key) #this is for server
+                    shared_key = generate_shared_key(rcv_public_key, private_key) #this is for both server and client
                     send_public_key(rcv_username, public_key) #send my public key to the other user
                     add_key(rcv_username, private_key, public_key, shared_key)
                 else:
                     print("IM THE SENDER")
-                    add_key(rcv_username, "", "", shared_key)
+                    if rcv_username in [key["username"] for key in data]:
+                        for key in data:
+                            if key["username"] == rcv_username:
+                                print("FOUND THE USER")
+                                shared_key = generate_shared_key(rcv_public_key, key["private_key"])
+                                key["shared_key"] = shared_key
     except Exception as e:
         print(f"Error handling client connection: {e}")
     finally:
@@ -259,7 +265,8 @@ def main():
     ip_address_self = get_ip_address()
     self_username = ask_for_username()
 
-    add_key(self_username, 0, 0, 0)
+    with open('key_cache.json', 'w'):
+        pass
 
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
