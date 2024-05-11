@@ -86,15 +86,23 @@ def handle_client_connection(client_socket):
             payload = json.loads(message.decode())
             rcv_username = payload.get('username')
             rcv_public_key = payload.get('public_key')
+            is_response = payload.get('is_response')
 
-           
+            if is_response == False:
+                #im not the one who initiated the chat
+                private_key = genarate_private_key() #this is for server
+                public_key = generate_public_key(private_key) #this is for server
+                shared_key = generate_shared_key(rcv_public_key, private_key)
+                send_public_key(rcv_username, public_key, True) #send my public key to the other user
+
+
+
 
             with open('key_cache.json', 'r') as file:
                 data = json.load(file)
-                cache_username = data[-1]['username']  
                 print(cache_username)
                 print(rcv_username)         
-                if rcv_username != cache_username: #this means im NOT the one who initiated the chat
+                if rcv_username not in [key["username"] for key in data]: #this means im NOT the one who initiated the chat
                     print("IM NOT THE SENDER")
                     private_key = genarate_private_key() #this is for server
                     public_key = generate_public_key(private_key) #this is for server
@@ -114,19 +122,19 @@ def handle_client_connection(client_socket):
     finally:
         client_socket.close()
 
-def send_public_key(username, public_key):
+def send_public_key(username, public_key, is_response):
     # Create a TCP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     user_ip_address = users[username]['ip_address']
     sock.connect((user_ip_address, 6001))
-    payload = json.dumps({"username": self_username, "public_key": public_key, "ip_address": ip_address_self})
+    payload = json.dumps({"username": self_username, "public_key": public_key, "ip_address": ip_address_self, "is_response": is_response})
     sock.sendall(payload.encode())
 
 def initiate_secure_chat(username):
     private_key = genarate_private_key()
     public_key = generate_public_key(private_key)
     add_key(username, private_key, public_key, -1)
-    send_public_key(username, public_key)
+    send_public_key(username, public_key, False)
 
 def initiate_chat():
     # Prompt the user for the username to chat with
