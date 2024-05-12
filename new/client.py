@@ -81,20 +81,21 @@ def handle_client_connection(client_socket):
             rcv_ip_adress = payload.get('ip_address')
             if is_response == False:
                 #im not the one who initiated the chat
-                respond(rcv_public_key, rcv_username)
+                respond(rcv_public_key, rcv_username, rcv_ip_adress)
                 create_chat_log(rcv_username)
                 users_to_chat[f'{rcv_username}'] = rcv_ip_adress
             elif is_response == True:
                 #im the one who initiated the chat
-                take_respond(rcv_username, rcv_public_key)
+                take_respond(rcv_username, rcv_public_key, rcv_ip_adress)
                 create_chat_log(rcv_username)
                 users_to_chat[f'{rcv_username}'] = rcv_ip_adress
+                
     except Exception as e:
         print(f"Error handling client connection: {e}")
     finally:
         client_socket.close()
 
-def respond(rcv_public_key, rcv_username):
+def respond(rcv_public_key, rcv_username, rcv_ip_adress):
     private_key = genarate_private_key()
     public_key = generate_public_key(private_key)
     shared_key = generate_shared_key(rcv_public_key, private_key)
@@ -118,7 +119,7 @@ def respond(rcv_public_key, rcv_username):
     if found == False:
         add_key(rcv_username, private_key, public_key, shared_key)
 
-def take_respond(rcv_username, rcv_public_key):
+def take_respond(rcv_username, rcv_public_key, rcv_ip_adress):
     with open('key_cache.json', 'r') as file:
         data = json.load(file)
         for key in data:
@@ -167,7 +168,15 @@ def initiate_secure_chat(username):
         send_public_key(username, public_key, False)
 
     message = input("Enter your message: ")
-    send_message(username, message)
+    with open('key_cache.json', 'r') as file:
+        data = json.load(file)
+        for key in data:
+            if key["username"] == username:
+                shared_key = key["shared_key"]
+                break
+    encrypted_message = encrypt_message(message, shared_key)
+    print(f"Encrypted message: {encrypted_message}")
+    send_message(username, encrypted_message, True)
     
 def initiate_chat():
     # Prompt the user for the username to chat with
@@ -310,8 +319,17 @@ def handle_message(client_socket):
             payload = json.loads(message.decode())
             sender = payload.get('sender')
             message = payload.get('message')
+            is_encrypted = payload.get('is_encrypted')
             direction = 'received'
             timestamp = time.ctime()
+            if is_encrypted:
+                with open('key_cache.json', 'r') as file:
+                    data = json.load(file)
+                    for key in data:
+                        if key["username"] == sender:
+                            shared_key = key["shared_key"]
+                            break
+                message = decrypt_message(message, shared_key)
             log_message(timestamp, sender, message, direction)
     except Exception as e:
         print(f"Error handling message: {e}")
@@ -323,7 +341,7 @@ def log_message(timestamp, sender, message, direction):
     with open(f'{sender}_log.txt', 'a') as log_file:
         log_file.write(log_entry + '\n')
 
-def send_message(username, message):
+def send_message(username, message, is_encrypted):
     # Create a TCP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     ip_address = users_to_chat[username]
@@ -333,7 +351,8 @@ def send_message(username, message):
     # Create the JSON payload
     payload = json.dumps({
         'sender': self_username,
-        'message': message
+        'message': message,
+        'is_encrypted': is_encrypted
     })
     # Send the message
     sock.sendall(payload.encode())
@@ -344,6 +363,19 @@ def send_message(username, message):
     timestamp = time.ctime()
     log_message(timestamp, username, message, 'sent')
 
+def encrypt_message(message, shared_key):
+    encrypted_message = ''
+    for char in message:
+        encrypted_char = chr(ord(char) + shared_key)
+        encrypted_message += encrypted_char
+    return encrypted_message
+
+def decrypt_message(encrypted_message, shared_key):
+    decrypted_message = ''
+    for char in encrypted_message:
+        decrypted_char = chr(ord(char) - shared_key)
+        decrypted_message += decrypted_char
+    return decrypted_message
 
 def main():
     global announce_thread_stop
