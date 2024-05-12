@@ -262,12 +262,8 @@ def initiate_chat():
         print("Invalid username. Please try again.")
 
 def print_history():
-    for user in users:
-        try:
-            with open(f'{user}_log.txt', 'r', encoding='utf-8') as log_file:
-                print(log_file.read())
-        except:
-            pass
+    with open("history.txt", 'r', encoding='utf-8') as log_file:
+        print(log_file.read())
 
 def ask_for_username():
     # Prompt the user for their username
@@ -370,6 +366,8 @@ def log_message(timestamp, sender, message, direction, is_encrypted):
     log_entry = f"{timestamp} - {sender} ({direction})({encrypt_status}): {message}"
     with open(f'{sender}_log.txt', 'a', encoding='utf-8') as log_file:
         log_file.write(log_entry + '\n')
+    with open("history.txt", 'a', encoding='utf-8') as log_file:
+        log_file.write(log_entry + '\n')
 
 def send_message(username, message, is_encrypted):
     # Create a TCP socket
@@ -430,6 +428,8 @@ def remove_cache_file():
 
 def open_cache_file():
     with open(KEY_CACHE_FILE, 'w'):
+        pass
+    with open("history.txt", 'w'):
         pass
 
 def main():
