@@ -187,7 +187,7 @@ def send_public_key(username, public_key, is_response):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         user_ip_address = users[username]['ip_address']
         sock.connect((user_ip_address, 6001))
-        payload = json.dumps({"username": self_username, "public_key": public_key, "ip_address": ip_address_self, "is_response": is_response})
+        payload = json.dumps({"username": self_username, "public_key": public_key, "ip_address": ip_address_self, "is_response": is_response, "is_message": False})
         sock.sendall(payload.encode())
     except:
         print("User is offline")
