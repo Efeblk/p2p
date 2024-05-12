@@ -119,7 +119,7 @@ def respond(rcv_public_key, rcv_username, rcv_ip_adress):
         with open(KEY_CACHE_FILE, 'w') as file:
             json.dump(data, file)
     except:
-        print("NO DATA FOUND")
+        pass
     if found == False:
         add_key(rcv_username, private_key, public_key, shared_key)
 
@@ -166,7 +166,7 @@ def initiate_secure_chat(username):
             with open(KEY_CACHE_FILE, 'w') as file:
                 json.dump(data, file)
         except:
-            print("NO DATA FOUND")
+            pass
         if found == False:
             add_key(username, private_key, public_key, -1)
         send_public_key(username, public_key, False)
@@ -205,9 +205,12 @@ def initiate_chat():
         print("Invalid username. Please try again.")
 
 def print_history():
-    # Display the chat history
-    with open('chat_log.txt', 'r') as log_file:
-        print(log_file.read())
+    for user in users_to_chat:
+        try:
+            with open(f'{user}_log.txt', 'r', encoding='utf-8') as log_file:
+                print(log_file.read())
+        except:
+            pass
 
 def ask_for_username():
     # Prompt the user for their username
@@ -291,7 +294,7 @@ def add_key(username, private_key, public_key, shared_key):
         with open(KEY_CACHE_FILE, 'r') as json_file:
             keys = json.load(json_file)
     except:
-        print("no data")
+        pass
 
     keys.append({"username": username, "private_key": private_key, "public_key": public_key, "shared_key": shared_key})
     # Write the updated keys back to the file
@@ -338,6 +341,7 @@ def handle_message(client_socket):
                             shared_key = key["shared_key"]
                             break
                 message = decrypt_message(message, shared_key)
+            print(f"{timestamp} - {sender} ({direction}): {message}")
             log_message(timestamp, sender, message, direction, is_encrypted)
     except Exception as e:
         print(f"Error handling message: {e}")
@@ -402,7 +406,7 @@ def remove_cache_file():
         try:
             os.remove(f'{user}_log.txt')
         except:
-            print("NO FILE FOUND")
+            pass
     os.remove(KEY_CACHE_FILE)
 
 def open_cache_file():
