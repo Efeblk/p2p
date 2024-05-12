@@ -74,6 +74,8 @@ def handle_client_connection(client_socket):
                 break
             payload = json.loads(message.decode())
             rcv_username = payload.get('username')
+            if rcv_username in users_to_chat:
+                return
             rcv_public_key = payload.get('public_key')
             is_response = payload.get('is_response')
             rcv_ip_adress = payload.get('ip_address')
@@ -140,28 +142,29 @@ def send_public_key(username, public_key, is_response):
     sock.sendall(payload.encode())
 
 def initiate_secure_chat(username):
-    private_key = genarate_private_key()
-    public_key = generate_public_key(private_key)
+    if username not in users_to_chat:
+        private_key = genarate_private_key()
+        public_key = generate_public_key(private_key)
 
-    found = False
-    try:
-        with open('key_cache.json', 'r') as file:
-            data = json.load(file)
-            print(data)
-            for key in data:
-                if key["username"] == username:
-                    found = True
-                    key["private_key"] = private_key
-                    key["public_key"] = public_key
-                    key["shared_key"] = -1
-                    break
-        with open('key_cache.json', 'w') as file:
-            json.dump(data, file)
-    except:
-        print("NO DATA FOUND")
-    if found == False:
-        add_key(username, private_key, public_key, -1)
-    send_public_key(username, public_key, False)
+        found = False
+        try:
+            with open('key_cache.json', 'r') as file:
+                data = json.load(file)
+                print(data)
+                for key in data:
+                    if key["username"] == username:
+                        found = True
+                        key["private_key"] = private_key
+                        key["public_key"] = public_key
+                        key["shared_key"] = -1
+                        break
+            with open('key_cache.json', 'w') as file:
+                json.dump(data, file)
+        except:
+            print("NO DATA FOUND")
+        if found == False:
+            add_key(username, private_key, public_key, -1)
+        send_public_key(username, public_key, False)
 
     message = input("Enter your message: ")
     send_message(username, message)
@@ -323,7 +326,7 @@ def log_message(timestamp, sender, message, direction):
 def send_message(username, message):
     # Create a TCP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    ip_address = users_to_chat[username]['ip_address']
+    ip_address = users_to_chat[username]
     # Connect to the server
     sock.connect((ip_address, 6002))
 
