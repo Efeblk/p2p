@@ -4,6 +4,7 @@ import time
 import socket
 import base64
 import random
+import os
 
 def genarate_private_key(): 
     # Always generate a new private key
@@ -330,14 +331,18 @@ def handle_message(client_socket):
                             shared_key = key["shared_key"]
                             break
                 message = decrypt_message(message, shared_key)
-            log_message(timestamp, sender, message, direction)
+            log_message(timestamp, sender, message, direction, is_encrypted)
     except Exception as e:
         print(f"Error handling message: {e}")
     finally:
         client_socket.close()
 
-def log_message(timestamp, sender, message, direction):
-    log_entry = f"{timestamp} - {sender} ({direction}): {message}"
+def log_message(timestamp, sender, message, direction, is_encrypted):
+    if is_encrypted:
+        encrypt_status = 'encrypted'
+    else:
+        encrypt_status = 'unencrypted'
+    log_entry = f"{timestamp} - {sender} ({direction})({encrypt_status}): {message}"
     with open(f'{sender}_log.txt', 'a', encoding='utf-8') as log_file:
         log_file.write(log_entry + '\n')
 
@@ -361,7 +366,15 @@ def send_message(username, message, is_encrypted):
     sock.close()
 
     timestamp = time.ctime()
-    log_message(timestamp, username, message, 'sent')
+    if is_encrypted:
+        with open("key_cache.json", "r") as json_file:
+            data = json.load(json_file)
+            for key in data:
+                if key["username"] == username:
+                    shared_key = key["shared_key"]
+                    message = decrypt_message(message, shared_key)
+                    break
+    log_message(timestamp, username, message, 'sent', is_encrypted)
 
 def encrypt_message(message, shared_key):
     encrypted_message = ''
@@ -376,6 +389,18 @@ def decrypt_message(encrypted_message, shared_key):
         decrypted_char = chr(ord(char) - shared_key)
         decrypted_message += decrypted_char
     return decrypted_message
+
+def remove_cache_file():
+    for user in users_to_chat:
+        try:
+            os.remove(f'{user}_log.txt')
+        except:
+            print("NO FILE FOUND")
+    open_cache_file()
+
+def open_cache_file():
+    with open('key_cache.json', 'w'):
+        pass
 
 def main():
     global announce_thread_stop
@@ -400,8 +425,7 @@ def main():
     ip_address_self = get_ip_address()
     self_username = ask_for_username()
 
-    with open('key_cache.json', 'w'):
-        pass
+    open_cache_file()
 
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
@@ -436,6 +460,7 @@ def main():
     connection_listener_thread.join() # Wait for the thread to finis
     message_threads_stop = True
     message_threads.join()
+    remove_cache_file()
     
 if __name__ == '__main__':
     main()
