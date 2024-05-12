@@ -105,6 +105,23 @@ def handle_client_connection(client_socket):
             payload = json.loads(message.decode())
             rcv_username = payload.get('username')
             if rcv_username in users_to_chat:
+                #chat is already established
+                is_message = payload.get('is_message')
+                if is_message:
+                    message = payload.get('message')
+                    is_encrypted = payload.get('is_encrypted')
+                    direction = 'received'
+                    timestamp = time.ctime()
+                    if is_encrypted:
+                        with open(KEY_CACHE_FILE, 'r') as file:
+                            data = json.load(file)
+                            for key in data:
+                                if key["username"] == rcv_username:
+                                    shared_key = key["shared_key"]
+                                    break
+                        message = decrypt_message(message, shared_key)
+                    print(f"{timestamp} - {rcv_username} ({direction}): {message}")
+                    log_message(timestamp, rcv_username, message, direction, is_encrypted)
                 return
             rcv_public_key = payload.get('public_key')
             is_response = payload.get('is_response')
@@ -344,52 +361,6 @@ def add_key(username, private_key, public_key, shared_key):
     with open(KEY_CACHE_FILE, "w") as json_file:
         json.dump(keys, json_file)
 
-def message_threads_listener():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind((ip_address_self, 6002))
-    sock.listen(1)
-    sock.settimeout(1)
-
-    try:
-        while True:
-            if message_threads_stop:
-                return
-            try:
-                client_socket, address = sock.accept()
-            except socket.timeout:
-                continue
-            handle_message(client_socket)
-    finally:
-        sock.close()
-
-def handle_message(client_socket):
-    try:
-        while True:
-            if message_threads_stop:
-                return
-            message = client_socket.recv(1024)
-            if not message:
-                break
-            payload = json.loads(message.decode())
-            sender = payload.get('sender')
-            message = payload.get('message')
-            is_encrypted = payload.get('is_encrypted')
-            direction = 'received'
-            timestamp = time.ctime()
-            if is_encrypted:
-                with open(KEY_CACHE_FILE, 'r') as file:
-                    data = json.load(file)
-                    for key in data:
-                        if key["username"] == sender:
-                            shared_key = key["shared_key"]
-                            break
-                message = decrypt_message(message, shared_key)
-            print(f"{timestamp} - {sender} ({direction}): {message}")
-            log_message(timestamp, sender, message, direction, is_encrypted)
-    except Exception as e:
-        print(f"Error handling message: {e}")
-    finally:
-        client_socket.close()
 
 def log_message(timestamp, sender, message, direction, is_encrypted):
     if is_encrypted:
@@ -405,13 +376,14 @@ def send_message(username, message, is_encrypted):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     ip_address = users_to_chat[username]
     # Connect to the server
-    sock.connect((ip_address, 6002))
+    sock.connect((ip_address, 6001))
 
     # Create the JSON payload
     payload = json.dumps({
-        'sender': self_username,
+        'username': self_username,
         'message': message,
-        'is_encrypted': is_encrypted
+        'is_encrypted': is_encrypted,
+        'is_message': True
     })
     # Send the message
     sock.sendall(payload.encode())
@@ -445,12 +417,16 @@ def decrypt_message(encrypted_message, shared_key):
     return decrypted_message
 
 def remove_cache_file():
-    for user in users_to_chat:
+    for user in users:
         try:
             os.remove(f'{user}_log.txt')
         except:
             pass
-    os.remove(KEY_CACHE_FILE)
+    try:
+        os.remove(KEY_CACHE_FILE)
+        os.remove("users.txt")
+    except:
+        pass
 
 def open_cache_file():
     with open(KEY_CACHE_FILE, 'w'):
@@ -460,7 +436,6 @@ def main():
     global announce_thread_stop
     global listen_thread_stop
     global connection_thread_stop
-    global message_threads_stop
 
     global users
     global users_to_chat
@@ -471,7 +446,6 @@ def main():
     connection_thread_stop = False
     listen_thread_stop = False
     announce_thread_stop = False
-    message_threads_stop = False
 
     global self_username
     global ip_address_self
@@ -484,12 +458,10 @@ def main():
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
     connection_listener_thread = threading.Thread(target=listen_connection)
-    message_threads = threading.Thread(target=message_threads_listener)
 
     listen_thread.start()
     announce_thread.start()
     connection_listener_thread.start()
-    message_threads.start()
 
     while True:
         option = input("Specify 'Users', 'Chat', 'History' or 'Exit': ")
@@ -512,8 +484,6 @@ def main():
     announce_thread.join() # Wait for the thread to finish
     connection_thread_stop = True
     connection_listener_thread.join() # Wait for the thread to finis
-    message_threads_stop = True
-    message_threads.join()
     remove_cache_file()
     
 if __name__ == '__main__':
