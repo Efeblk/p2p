@@ -61,6 +61,17 @@ def check_online_users(users):
                     json.dump(data, file)
             except:
                 pass
+    users_to_remove = []
+    for user in users:
+        time_difference = current_time - users[user]['last_seen']
+        if time_difference >= 900:
+            users_to_remove.append(user)
+
+    for user in users_to_remove:
+        users.pop(user)
+
+    with open('users.txt', 'w') as f:
+        json.dump(users, f)
 
 def list_users():
     display_online_users(users)
