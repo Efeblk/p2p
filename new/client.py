@@ -342,7 +342,7 @@ def send_message(username, message):
     sock.close()
 
     timestamp = time.ctime()
-    log_message(timestamp, self_username, message, 'sent')
+    log_message(timestamp, username, message, 'sent')
 
 
 def main():
