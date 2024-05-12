@@ -6,8 +6,8 @@ import base64
 import random
 import os
 
-KEY_CACHE_FILE = './cache/key_cache.json'
-P_AND_G_FILE = './cache/p_and_g.json'
+KEY_CACHE_FILE = 'key_cache.json'
+P_AND_G_FILE = 'p_and_g.json'
 
 def genarate_private_key(): 
     # Always generate a new private key
@@ -422,6 +422,8 @@ def remove_cache_file():
             pass
     try:
         os.remove(KEY_CACHE_FILE)
+        os.remove("history.txt")
+        os.remove(P_AND_G_FILE)
         os.remove("users.txt")
     except:
         pass
@@ -431,6 +433,9 @@ def open_cache_file():
         pass
     with open("history.txt", 'w'):
         pass
+    with open(P_AND_G_FILE, 'w') as json_file:
+        json.dump({"p": 23, "g": 5}, json_file)
+        
 
 def main():
     global announce_thread_stop
