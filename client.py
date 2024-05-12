@@ -6,13 +6,16 @@ import base64
 import random
 import os
 
+KEY_CACHE_FILE = './cache/key_cache.json'
+P_AND_G_FILE = './cache/p_and_g.json'
+
 def genarate_private_key(): 
     # Always generate a new private key
     private_key = random.randint(1, 23)
     return private_key
 
 def generate_public_key(private_key):
-    with open("p_and_g.json", "r") as json_file:
+    with open(P_AND_G_FILE, "r") as json_file:
         data = json.load(json_file)
     p = data["p"]
     g = data["g"]
@@ -21,7 +24,7 @@ def generate_public_key(private_key):
     return public_key
 
 def generate_shared_key(public_key, private_key):
-    with open("p_and_g.json", "r") as json_file:
+    with open(P_AND_G_FILE, "r") as json_file:
         data = json.load(json_file)
     p = data["p"]
     shared_key = pow(public_key, private_key, p)
@@ -104,7 +107,7 @@ def respond(rcv_public_key, rcv_username, rcv_ip_adress):
 
     found = False
     try:
-        with open('key_cache.json', 'r') as file:
+        with open(KEY_CACHE_FILE, 'r') as file:
             data = json.load(file)
             for key in data:
                 if key["username"] == rcv_username:
@@ -113,7 +116,7 @@ def respond(rcv_public_key, rcv_username, rcv_ip_adress):
                     key["public_key"] = public_key
                     key["shared_key"] = shared_key
                     break
-        with open('key_cache.json', 'w') as file:
+        with open(KEY_CACHE_FILE, 'w') as file:
             json.dump(data, file)
     except:
         print("NO DATA FOUND")
@@ -121,14 +124,14 @@ def respond(rcv_public_key, rcv_username, rcv_ip_adress):
         add_key(rcv_username, private_key, public_key, shared_key)
 
 def take_respond(rcv_username, rcv_public_key, rcv_ip_adress):
-    with open('key_cache.json', 'r') as file:
+    with open(KEY_CACHE_FILE, 'r') as file:
         data = json.load(file)
         for key in data:
             if key["username"] == rcv_username:
                 shared_key = generate_shared_key(rcv_public_key, key["private_key"])
                 key["shared_key"] = shared_key
                 break
-    with open('key_cache.json', 'w') as file:
+    with open(KEY_CACHE_FILE, 'w') as file:
         json.dump(data, file)
 
 def create_chat_log(username):
@@ -150,7 +153,7 @@ def initiate_secure_chat(username):
 
         found = False
         try:
-            with open('key_cache.json', 'r') as file:
+            with open(KEY_CACHE_FILE, 'r') as file:
                 data = json.load(file)
                 print(data)
                 for key in data:
@@ -160,7 +163,7 @@ def initiate_secure_chat(username):
                         key["public_key"] = public_key
                         key["shared_key"] = -1
                         break
-            with open('key_cache.json', 'w') as file:
+            with open(KEY_CACHE_FILE, 'w') as file:
                 json.dump(data, file)
         except:
             print("NO DATA FOUND")
@@ -169,7 +172,7 @@ def initiate_secure_chat(username):
         send_public_key(username, public_key, False)
 
     message = input("Enter your message: ")
-    with open('key_cache.json', 'r') as file:
+    with open(KEY_CACHE_FILE, 'r') as file:
         data = json.load(file)
         for key in data:
             if key["username"] == username:
@@ -179,6 +182,10 @@ def initiate_secure_chat(username):
     print(f"Encrypted message: {encrypted_message}")
     send_message(username, encrypted_message, True)
     
+def initiate_unsecure_chat(username):
+    message = input("Enter your message: ")
+    send_message(username, message, False)
+
 def initiate_chat():
     # Prompt the user for the username to chat with
     while True:
@@ -281,14 +288,14 @@ def add_key(username, private_key, public_key, shared_key):
     # Load the existing keys
     keys = []
     try:
-        with open("key_cache.json", 'r') as json_file:
+        with open(KEY_CACHE_FILE, 'r') as json_file:
             keys = json.load(json_file)
     except:
         print("no data")
 
     keys.append({"username": username, "private_key": private_key, "public_key": public_key, "shared_key": shared_key})
     # Write the updated keys back to the file
-    with open("key_cache.json", "w") as json_file:
+    with open(KEY_CACHE_FILE, "w") as json_file:
         json.dump(keys, json_file)
 
 def message_threads_listener():
@@ -324,7 +331,7 @@ def handle_message(client_socket):
             direction = 'received'
             timestamp = time.ctime()
             if is_encrypted:
-                with open('key_cache.json', 'r') as file:
+                with open(KEY_CACHE_FILE, 'r') as file:
                     data = json.load(file)
                     for key in data:
                         if key["username"] == sender:
@@ -367,7 +374,7 @@ def send_message(username, message, is_encrypted):
 
     timestamp = time.ctime()
     if is_encrypted:
-        with open("key_cache.json", "r") as json_file:
+        with open(KEY_CACHE_FILE, "r") as json_file:
             data = json.load(json_file)
             for key in data:
                 if key["username"] == username:
@@ -396,10 +403,10 @@ def remove_cache_file():
             os.remove(f'{user}_log.txt')
         except:
             print("NO FILE FOUND")
-    open_cache_file()
+    os.remove(KEY_CACHE_FILE)
 
 def open_cache_file():
-    with open('key_cache.json', 'w'):
+    with open(KEY_CACHE_FILE, 'w'):
         pass
 
 def main():
