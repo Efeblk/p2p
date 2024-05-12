@@ -48,7 +48,6 @@ def check_online_users(users):
         last_seen = user_info['last_seen']
         time_difference = current_time - last_seen
         if time_difference >= 10:
-            print(f"{username} is offline.")
             try:
                 users_to_chat.pop(username)
                 with open(KEY_CACHE_FILE, 'r') as file:
@@ -246,7 +245,7 @@ def initiate_chat():
         print("Invalid username. Please try again.")
 
 def print_history():
-    for user in users_to_chat:
+    for user in users:
         try:
             with open(f'{user}_log.txt', 'r', encoding='utf-8') as log_file:
                 print(log_file.read())
