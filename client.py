@@ -42,12 +42,28 @@ def display_online_users(users):
             status = 'Away'
         print(f"{username} ({status})")
 
+def check_online_users(users):
+    current_time = time.time()
+    for username, user_info in users.items():
+        last_seen = user_info['last_seen']
+        time_difference = current_time - last_seen
+        if time_difference >= 10:
+            print(f"{username} is offline.")
+            try:
+                users_to_chat.pop(username)
+                with open(KEY_CACHE_FILE, 'r') as file:
+                    data = json.load(file)
+                    for key in data:
+                        if key["username"] == username:
+                            data.remove(key)
+                            break
+                with open(KEY_CACHE_FILE, 'w') as file:
+                    json.dump(data, file)
+            except:
+                pass
+
 def list_users():
     display_online_users(users)
-    print(users)
-
-
-
 
 def listen_connection():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -140,11 +156,15 @@ def create_chat_log(username):
 
 def send_public_key(username, public_key, is_response):
     # Create a TCP socket
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    user_ip_address = users[username]['ip_address']
-    sock.connect((user_ip_address, 6001))
-    payload = json.dumps({"username": self_username, "public_key": public_key, "ip_address": ip_address_self, "is_response": is_response})
-    sock.sendall(payload.encode())
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        user_ip_address = users[username]['ip_address']
+        sock.connect((user_ip_address, 6001))
+        payload = json.dumps({"username": self_username, "public_key": public_key, "ip_address": ip_address_self, "is_response": is_response})
+        sock.sendall(payload.encode())
+    except:
+        print("User is offline")
+        return False
 
 def initiate_secure_chat(username):
     if username not in users_to_chat:
@@ -169,7 +189,17 @@ def initiate_secure_chat(username):
             pass
         if found == False:
             add_key(username, private_key, public_key, -1)
-        send_public_key(username, public_key, False)
+        if (send_public_key(username, public_key, False) == False):
+            print("User is offline.")
+            with open(KEY_CACHE_FILE, 'r') as file:
+                data = json.load(file)
+                for key in data:
+                    if key["username"] == username:
+                        data.remove(key)
+                        break
+            with open(KEY_CACHE_FILE, 'w') as file:
+                json.dump(data, file)
+            return
 
     message = input("Enter your message: ")
     with open(KEY_CACHE_FILE, 'r') as file:
@@ -268,6 +298,7 @@ def listen_for_broadcasts():
     sock.bind(('', 6000))
 
     while True:
+
         if listen_thread_stop:
             return
         data, address = sock.recvfrom(1024)
@@ -277,9 +308,11 @@ def listen_for_broadcasts():
             # Extract the username and IP address from the message
             username = message['username']
             ip_address = message['ip_address']
+
+            check_online_users(users)
+
             if ip_address == ip_address_self:
                 continue
-            # Update the last seen time and IP address for the user
             users[username] = {'last_seen': time.time(), 'ip_address': ip_address}
             # Write the user data to a file
             with open('users.txt', 'w') as f:
