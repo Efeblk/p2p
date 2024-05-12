@@ -120,7 +120,7 @@ def handle_client_connection(client_socket):
                                     shared_key = key["shared_key"]
                                     break
                         message = decrypt_message(message, shared_key)
-                    print(f"{timestamp} - {rcv_username} ({direction}): {message}")
+                    print(f"\n{timestamp} - {rcv_username} ({direction}): {message}")
                     log_message(timestamp, rcv_username, message, direction, is_encrypted)
                 return
             rcv_public_key = payload.get('public_key')
@@ -236,7 +236,6 @@ def initiate_secure_chat(username):
                 shared_key = key["shared_key"]
                 break
     encrypted_message = encrypt_message(message, shared_key)
-    print(f"Encrypted message: {encrypted_message}")
     send_message(username, encrypted_message, True)
     
 def initiate_unsecure_chat(username):
@@ -284,6 +283,7 @@ def send_broadcast(username, ip_address, interval=8):
         try:
             # Send the broadcast message
             sock.sendto(payload.encode(), ('255.255.255.255', 6000)) #'<broadcast>'
+            print(f"\n {username}: {ip_address}")
         except Exception as e:
             pass
 
