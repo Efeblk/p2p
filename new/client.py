@@ -338,7 +338,7 @@ def handle_message(client_socket):
 
 def log_message(timestamp, sender, message, direction):
     log_entry = f"{timestamp} - {sender} ({direction}): {message}"
-    with open(f'{sender}_log.txt', 'a') as log_file:
+    with open(f'{sender}_log.txt', 'a', encoding='utf-8') as log_file:
         log_file.write(log_entry + '\n')
 
 def send_message(username, message, is_encrypted):
