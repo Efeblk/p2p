@@ -1,10 +1,9 @@
-import random
 import json
 import threading
 import time
 import socket
 import base64
-import datetime
+import random
 
 def genarate_private_key(): 
     # Always generate a new private key
@@ -27,6 +26,7 @@ def generate_shared_key(public_key, private_key):
     shared_key = pow(public_key, private_key, p)
     return shared_key
 
+
 def display_online_users(users):
     current_time = time.time()
     for username, user_info in users.items():
@@ -42,14 +42,6 @@ def list_users():
     display_online_users(users)
     print(users)
 
-def decrypt_message(encrypted_message_base64, shared_key):
-    shared_key = shared_key.to_bytes(8, 'big')
-    cipher = des(shared_key, padmode=PAD_PKCS5)
-
-    encrypted_message = base64.b64decode(encrypted_message_base64)
-    decrypted_message = cipher.decrypt(encrypted_message)
-
-    return decrypted_message
 
 def log_message(timestamp, sender, message, direction):
     log_entry = f"{timestamp} - {sender} ({direction}): {message}"
@@ -89,43 +81,55 @@ def handle_client_connection(client_socket):
             is_response = payload.get('is_response')
             if is_response == False:
                 #im not the one who initiated the chat
-                private_key = genarate_private_key() #this is for server
-                public_key = generate_public_key(private_key) #this is for server
-                shared_key = generate_shared_key(rcv_public_key, private_key)
-                send_public_key(rcv_username, public_key, True) #send my public key to the other user
-
-                found = False
-                try:
-                    with open('key_cache.json', 'r') as file:
-                        data = json.load(file)
-                        for key in data:
-                            if key["username"] == rcv_username:
-                                found = True
-                                key["private_key"] = private_key
-                                key["public_key"] = public_key
-                                key["shared_key"] = shared_key
-                                break
-                    with open('key_cache.json', 'w') as file:
-                        json.dump(data, file)
-                except:
-                    print("NO DATA FOUND")
-                if found == False:
-                    add_key(rcv_username, private_key, public_key, shared_key)
+                respond(rcv_public_key, rcv_username)
+                create_chat_log(rcv_username)
             elif is_response == True:
                 #im the one who initiated the chat
-                with open('key_cache.json', 'r') as file:
-                    data = json.load(file)
-                    for key in data:
-                        if key["username"] == rcv_username:
-                            shared_key = generate_shared_key(rcv_public_key, key["private_key"])
-                            key["shared_key"] = shared_key
-                            break
-                with open('key_cache.json', 'w') as file:
-                    json.dump(data, file)
+                take_respond(rcv_username, rcv_public_key)
+                create_chat_log(rcv_username)
     except Exception as e:
         print(f"Error handling client connection: {e}")
     finally:
         client_socket.close()
+
+def respond(rcv_public_key, rcv_username):
+    private_key = genarate_private_key()
+    public_key = generate_public_key(private_key)
+    shared_key = generate_shared_key(rcv_public_key, private_key)
+    send_public_key(rcv_username, public_key, True)
+
+    found = False
+    try:
+        with open('key_cache.json', 'r') as file:
+            data = json.load(file)
+            for key in data:
+                if key["username"] == rcv_username:
+                    found = True
+                    key["private_key"] = private_key
+                    key["public_key"] = public_key
+                    key["shared_key"] = shared_key
+                    break
+        with open('key_cache.json', 'w') as file:
+            json.dump(data, file)
+    except:
+        print("NO DATA FOUND")
+    if found == False:
+        add_key(rcv_username, private_key, public_key, shared_key)
+
+def take_respond(rcv_username, rcv_public_key):
+    with open('key_cache.json', 'r') as file:
+        data = json.load(file)
+        for key in data:
+            if key["username"] == rcv_username:
+                shared_key = generate_shared_key(rcv_public_key, key["private_key"])
+                key["shared_key"] = shared_key
+                break
+    with open('key_cache.json', 'w') as file:
+        json.dump(data, file)
+
+def create_chat_log(username):
+    with open(f'{username}_log.txt', 'a') as log_file:
+        log_file.write(f"Chat with {username} started at {time.ctime()}\n")
 
 def send_public_key(username, public_key, is_response):
     # Create a TCP socket
