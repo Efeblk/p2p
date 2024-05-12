@@ -43,10 +43,7 @@ def list_users():
     print(users)
 
 
-def log_message(timestamp, sender, message, direction):
-    log_entry = f"{timestamp} - {sender} ({direction}): {message}"
-    with open('chat_log.txt', 'a') as log_file:
-        log_file.write(log_entry + '\n')
+
 
 def listen_connection():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -57,7 +54,7 @@ def listen_connection():
 
     try:
         while True:
-            if message_thread_stop:
+            if connection_thread_stop:
                 return
             try:
                 client_socket, address = server_socket.accept()
@@ -70,7 +67,7 @@ def listen_connection():
 def handle_client_connection(client_socket):
     try:
         while True:
-            if message_thread_stop:
+            if connection_thread_stop:
                 return
             message = client_socket.recv(1024)
             if not message:
@@ -83,10 +80,12 @@ def handle_client_connection(client_socket):
                 #im not the one who initiated the chat
                 respond(rcv_public_key, rcv_username)
                 create_chat_log(rcv_username)
+                users_to_chat.append(rcv_username)
             elif is_response == True:
                 #im the one who initiated the chat
                 take_respond(rcv_username, rcv_public_key)
                 create_chat_log(rcv_username)
+                users_to_chat.append(rcv_username)
     except Exception as e:
         print(f"Error handling client connection: {e}")
     finally:
@@ -275,18 +274,65 @@ def add_key(username, private_key, public_key, shared_key):
     with open("key_cache.json", "w") as json_file:
         json.dump(keys, json_file)
 
+def message_threads_listener():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind((ip_address_self, 6002))
+    sock.listen(1)
+    sock.settimeout(1)
+
+    try:
+        while True:
+            if message_threads_stop:
+                return
+            try:
+                client_socket, address = sock.accept()
+            except socket.timeout:
+                continue
+            handle_message(client_socket)
+    finally:
+        sock.close()
+
+def handle_message(client_socket):
+    try:
+        while True:
+            if message_threads_stop:
+                return
+            message = client_socket.recv(1024)
+            if not message:
+                break
+            payload = json.loads(message.decode())
+            sender = payload.get('sender')
+            message = payload.get('message')
+            direction = 'received'
+            timestamp = time.ctime()
+            log_message(timestamp, sender, message, direction)
+    except Exception as e:
+        print(f"Error handling message: {e}")
+    finally:
+        client_socket.close()
+
+def log_message(timestamp, sender, message, direction):
+    log_entry = f"{timestamp} - {sender} ({direction}): {message}"
+    with open(f'{sender}_log.txt', 'a') as log_file:
+        log_file.write(log_entry + '\n')
+
 def main():
     global announce_thread_stop
     global listen_thread_stop
-    global message_thread_stop
-    global users
+    global connection_thread_stop
+    global message_threads_stop
 
+    global users
+    global users_to_chat
+
+    users_to_chat = []
     users = {}
 
-    message_thread_stop = False
+    connection_thread_stop = False
     listen_thread_stop = False
     announce_thread_stop = False
-    
+    message_threads_stop = False
+
     global self_username
     global ip_address_self
 
@@ -298,10 +344,13 @@ def main():
 
     announce_thread = threading.Thread(target=live_self_announce, args=(self_username,))
     listen_thread = threading.Thread(target=listen_for_broadcasts)
-    message_listener_thread = threading.Thread(target=listen_connection)
+    connection_listener_thread = threading.Thread(target=listen_connection)
+    message_threads = threading.Thread(target=message_threads_listener)
+
     listen_thread.start()
     announce_thread.start()
-    message_listener_thread.start()
+    connection_listener_thread.start()
+    message_threads.start()
 
     while True:
         option = input("Specify 'Users', 'Chat', 'History' or 'Exit': ")
@@ -322,9 +371,10 @@ def main():
     listen_thread.join() # Wait for the thread to finish
     announce_thread_stop = True
     announce_thread.join() # Wait for the thread to finish
-    message_thread_stop = True
-    message_listener_thread.join() # Wait for the thread to finis
-    
+    connection_thread_stop = True
+    connection_listener_thread.join() # Wait for the thread to finis
+    message_threads_stop = True
+    message_threads.join()
     
 if __name__ == '__main__':
     main()
