@@ -76,16 +76,17 @@ def handle_client_connection(client_socket):
             rcv_username = payload.get('username')
             rcv_public_key = payload.get('public_key')
             is_response = payload.get('is_response')
+            rcv_ip_adress = payload.get('ip_address')
             if is_response == False:
                 #im not the one who initiated the chat
                 respond(rcv_public_key, rcv_username)
                 create_chat_log(rcv_username)
-                users_to_chat.append(rcv_username)
+                users_to_chat[f'{rcv_username}'] = rcv_ip_adress
             elif is_response == True:
                 #im the one who initiated the chat
                 take_respond(rcv_username, rcv_public_key)
                 create_chat_log(rcv_username)
-                users_to_chat.append(rcv_username)
+                users_to_chat[f'{rcv_username}'] = rcv_ip_adress
     except Exception as e:
         print(f"Error handling client connection: {e}")
     finally:
@@ -162,6 +163,9 @@ def initiate_secure_chat(username):
         add_key(username, private_key, public_key, -1)
     send_public_key(username, public_key, False)
 
+    message = input("Enter your message: ")
+    send_message(username, message)
+    
 def initiate_chat():
     # Prompt the user for the username to chat with
     while True:
@@ -316,6 +320,28 @@ def log_message(timestamp, sender, message, direction):
     with open(f'{sender}_log.txt', 'a') as log_file:
         log_file.write(log_entry + '\n')
 
+def send_message(username, message):
+    # Create a TCP socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ip_address = users_to_chat[username]['ip_address']
+    # Connect to the server
+    sock.connect((ip_address, 6002))
+
+    # Create the JSON payload
+    payload = json.dumps({
+        'sender': self_username,
+        'message': message
+    })
+    # Send the message
+    sock.sendall(payload.encode())
+
+    # Close the socket
+    sock.close()
+
+    timestamp = time.ctime()
+    log_message(timestamp, self_username, message, 'sent')
+
+
 def main():
     global announce_thread_stop
     global listen_thread_stop
@@ -325,7 +351,7 @@ def main():
     global users
     global users_to_chat
 
-    users_to_chat = []
+    users_to_chat = {}
     users = {}
 
     connection_thread_stop = False
